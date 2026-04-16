@@ -1,25 +1,25 @@
-FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+# pytorch/pytorch already has: Python 3.11, PyTorch 2.4.0, CUDA 12.1, cudnn8, conda
+# We use conda-forge for ffmpeg/libsndfile to avoid Ubuntu apt mirrors (unreachable on some hosts)
+FROM pytorch/pytorch:2.4.0-cuda12.1-cudnn8-runtime
 
-ENV DEBIAN_FRONTEND=noninteractive PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.10 python3-pip python3.10-dev \
-    ffmpeg libsndfile1 ca-certificates curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && ln -sf /usr/bin/python3.10 /usr/bin/python \
-    && ln -sf /usr/bin/pip3 /usr/bin/pip
+RUN conda install -y -c conda-forge ffmpeg libsndfile curl ca-certificates \
+    && conda clean --all --yes
+
+# torchaudio matching the installed torch — --no-deps avoids reinstalling torch
+RUN pip install --no-cache-dir --no-deps \
+        torchaudio==2.4.0 \
+        --index-url https://download.pytorch.org/whl/cu121
 
 WORKDIR /app
-
 COPY requirements.txt .
-RUN pip install --no-cache-dir torch==2.4.0 torchaudio==2.4.0 \
-        --index-url https://download.pytorch.org/whl/cu121 \
-    && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
 
 EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
   CMD curl -fsS http://localhost:8000/health || exit 1
 
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

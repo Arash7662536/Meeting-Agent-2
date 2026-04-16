@@ -1,3 +1,4 @@
+# torch & torchaudio are pre-installed in the pytorch/pytorch base image
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
 gradio==4.44.0
