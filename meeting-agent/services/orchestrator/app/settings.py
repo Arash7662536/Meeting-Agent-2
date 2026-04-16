@@ -10,6 +10,7 @@ class Settings:
     WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "openai/whisper-large-v3")
     DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
     DB_PATH = Path(os.environ.get("DB_PATH", "/data/meeting_agent.db"))
+    GRADIO_SHARE = os.environ.get("GRADIO_SHARE", "true").lower() == "true"
 
 
 settings = Settings()

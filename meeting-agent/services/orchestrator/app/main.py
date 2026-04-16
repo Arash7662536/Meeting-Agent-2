@@ -1,10 +1,10 @@
 import shutil
 import subprocess
+import threading
 import uuid
 from pathlib import Path
 from typing import Optional
 
-import gradio as gr
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
@@ -15,11 +15,28 @@ from .tasks import enqueue_job
 from .ui import build_ui
 
 api = FastAPI(title="Meeting Agent")
+_gradio_share = settings.GRADIO_SHARE
 
 
 @api.on_event("startup")
 def _startup() -> None:
     init_db()
+    _launch_gradio()
+
+
+def _launch_gradio() -> None:
+    ui = build_ui()
+
+    def _run():
+        ui.launch(
+            server_name="0.0.0.0",
+            server_port=7860,
+            share=_gradio_share,
+            prevent_thread_lock=True,
+            quiet=False,
+        )
+
+    threading.Thread(target=_run, daemon=True).start()
 
 
 @api.get("/health")
@@ -159,4 +176,4 @@ def delete_voice(name: str):
     return clients.resemblyzer_delete_profile(name)
 
 
-app = gr.mount_gradio_app(api, build_ui(), path="/")
+app = api

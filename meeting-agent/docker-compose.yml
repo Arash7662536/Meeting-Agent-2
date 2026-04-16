@@ -69,10 +69,12 @@ services:
       - WHISPER_MODEL=${WHISPER_MODEL:-openai/whisper-large-v3}
       - DATA_DIR=/data
       - DB_PATH=/data/meeting_agent.db
+      - GRADIO_SHARE=${GRADIO_SHARE:-true}
     volumes:
       - ./data:/data
     ports:
-      - "7860:8000"
+      - "8000:8000"   # FastAPI
+      - "7860:7860"   # Gradio (share link tunnels through this)
     depends_on:
       - redis
       - pyannote
