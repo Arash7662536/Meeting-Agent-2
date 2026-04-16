@@ -1,0 +1,8 @@
+resemblyzer==0.1.4
+numpy<2
+librosa==0.10.2.post1
+soundfile==0.12.1
+webrtcvad-wheels==2.0.14
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+pydantic==2.9.2

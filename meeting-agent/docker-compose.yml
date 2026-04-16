@@ -1,0 +1,115 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+
+  vllm-whisper:
+    image: vllm/vllm-openai:latest
+    restart: unless-stopped
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
+    command: >
+      --model ${WHISPER_MODEL:-openai/whisper-large-v3}
+      --task transcription
+      --port 8000
+      --host 0.0.0.0
+      --gpu-memory-utilization ${VLLM_GPU_UTIL:-0.5}
+    volumes:
+      - hf-cache:/root/.cache/huggingface
+    ports:
+      - "8001:8000"
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  pyannote:
+    build: ./services/pyannote
+    restart: unless-stopped
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+      - DATA_DIR=/data
+    volumes:
+      - ./data:/data
+      - hf-cache:/root/.cache/huggingface
+    ports:
+      - "8002:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  resemblyzer:
+    build: ./services/resemblyzer
+    restart: unless-stopped
+    environment:
+      - DATA_DIR=/data
+    volumes:
+      - ./data:/data
+    ports:
+      - "8003:8000"
+
+  orchestrator:
+    build: ./services/orchestrator
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - VLLM_URL=http://vllm-whisper:8000
+      - PYANNOTE_URL=http://pyannote:8000
+      - RESEMBLYZER_URL=http://resemblyzer:8000
+      - WHISPER_MODEL=${WHISPER_MODEL:-openai/whisper-large-v3}
+      - DATA_DIR=/data
+      - DB_PATH=/data/meeting_agent.db
+    volumes:
+      - ./data:/data
+    ports:
+      - "7860:8000"
+    depends_on:
+      - redis
+      - pyannote
+      - resemblyzer
+      - vllm-whisper
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  worker:
+    build: ./services/orchestrator
+    restart: unless-stopped
+    command: python -m app.worker
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - VLLM_URL=http://vllm-whisper:8000
+      - PYANNOTE_URL=http://pyannote:8000
+      - RESEMBLYZER_URL=http://resemblyzer:8000
+      - WHISPER_MODEL=${WHISPER_MODEL:-openai/whisper-large-v3}
+      - DATA_DIR=/data
+      - DB_PATH=/data/meeting_agent.db
+    volumes:
+      - ./data:/data
+    depends_on:
+      - redis
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  redis-data:
+  hf-cache:
