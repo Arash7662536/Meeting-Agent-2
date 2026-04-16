@@ -1,6 +1,6 @@
-# pytorch/pytorch already has: Python 3.11, PyTorch 2.4.0, CUDA 12.1, cudnn8, conda
+# pytorch/pytorch already has: Python 3.11, PyTorch 2.4.0, CUDA 12.1, cudnn9, conda
 # We use conda-forge for ffmpeg/libsndfile to avoid Ubuntu apt mirrors (unreachable on some hosts)
-FROM pytorch/pytorch:2.4.0-cuda12.1-cudnn8-runtime
+FROM pytorch/pytorch:2.4.0-cuda12.1-cudnn9-runtime
 
 ENV PYTHONUNBUFFERED=1
 
