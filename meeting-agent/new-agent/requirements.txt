@@ -1,0 +1,21 @@
+# Core
+torch>=2.1.0
+torchaudio>=2.1.0
+requests>=2.31.0
+
+# Diarization - pyannote models (3.1 + community-1)
+pyannote.audio>=3.1.0
+
+# DiariZen (best open-source diarizer)
+# Install manually:
+#   pip install git+https://github.com/BUTSpeechFIT/DiariZen
+# OR clone and install:
+#   git clone https://github.com/BUTSpeechFIT/DiariZen && cd DiariZen && pip install -e .
+
+# Audio / video input handling
+yt-dlp>=2024.1.0    # YouTube & generic URL download
+ffmpeg-python>=0.2.0  # ffmpeg wrapper (ffmpeg binary must be installed separately)
+
+# Output / utils
+tqdm>=4.66.0
+colorama>=0.4.6      # colored terminal output

@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Meeting Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+/* ── Reset & base ──────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:       #0e0f11;
+  --surface:  #16181c;
+  --raised:   #1d2027;
+  --border:   #2a2d35;
+  --border2:  #363a45;
+  --text:     #e8eaf0;
+  --muted:    #6b7280;
+  --dimmed:   #9ca3af;
+  --accent:   #4f8ef7;
+  --accent2:  #2d6be4;
+  --success:  #22c55e;
+  --error:    #ef4444;
+  --warn:     #f59e0b;
+
+  /* speaker palette */
+  --sp0: #4f8ef7; --sp0t: #1a3a6e;
+  --sp1: #f97316; --sp1t: #7c2d04;
+  --sp2: #22c55e; --sp2t: #14532d;
+  --sp3: #a78bfa; --sp3t: #4c1d95;
+  --sp4: #f43f5e; --sp4t: #881337;
+  --sp5: #06b6d4; --sp5t: #164e63;
+
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --radius: 6px;
+  --radius-lg: 10px;
+}
+
+html { background: var(--bg); color: var(--text); font-family: var(--sans); }
+
+body {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  padding: 0;
+}
+
+/* ── Header ────────────────────────────────────────────────────────────── */
+header {
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 100;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+.logo-icon {
+  width: 28px; height: 28px;
+  background: var(--accent);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+.logo-badge {
+  font-size: 10px;
+  font-family: var(--mono);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  padding: 2px 7px;
+  border-radius: 4px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+.whisper-status {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+}
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--muted);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+.dot.online { background: var(--success); }
+.dot.offline { background: var(--error); animation: none; }
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+}
+
+/* ── Main layout ───────────────────────────────────────────────────────── */
+main {
+  max-width: 860px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 40px 24px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Card ──────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.card-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.card-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.card-body { padding: 20px; }
+
+/* ── Input tabs ────────────────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 3px;
+  width: fit-content;
+  margin-bottom: 20px;
+}
+.tab-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: all 0.15s;
+}
+.tab-btn.active {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border2);
+}
+
+/* ── Drop zone ─────────────────────────────────────────────────────────── */
+#drop-zone {
+  border: 1.5px dashed var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  background: var(--raised);
+}
+#drop-zone:hover, #drop-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(79, 142, 247, 0.06);
+}
+#drop-zone .drop-icon {
+  font-size: 32px;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+#drop-zone p { font-size: 13px; color: var(--dimmed); line-height: 1.6; }
+#drop-zone em { font-style: normal; color: var(--accent); cursor: pointer; }
+#drop-zone input { display: none; }
+#file-info {
+  margin-top: 10px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--success);
+}
+#file-info .file-name { color: var(--text); }
+
+/* ── URL input ─────────────────────────────────────────────────────────── */
+.url-input-wrap { display: flex; gap: 10px; flex-direction: column; }
+.url-input-wrap label { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+.url-input-wrap input {
+  width: 100%;
+  background: var(--raised);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.url-input-wrap input:focus { border-color: var(--accent); }
+.url-input-wrap input::placeholder { color: var(--muted); }
+
+/* ── Model cards ───────────────────────────────────────────────────────── */
+.section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  margin-top: 24px;
+}
+.model-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.model-card {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--raised);
+  position: relative;
+}
+.model-card:hover { border-color: var(--border2); background: var(--surface); }
+.model-card.selected {
+  border-color: var(--accent);
+  background: rgba(79,142,247,0.07);
+}
+.model-card input[type=radio] { display: none; }
+.model-name {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.model-desc { font-size: 11px; color: var(--muted); line-height: 1.5; margin-bottom: 8px; }
+.model-der { font-family: var(--mono); font-size: 10px; color: var(--dimmed); }
+.model-der span { color: var(--text); }
+.badge {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.badge-best { background: rgba(79,142,247,0.15); color: var(--accent); border: 1px solid rgba(79,142,247,0.3); }
+.badge-oss  { background: rgba(34,197,94,0.12); color: var(--success); border: 1px solid rgba(34,197,94,0.25); }
+.badge-leg  { background: rgba(107,114,128,0.15); color: var(--muted); border: 1px solid var(--border2); }
+.check-mark {
+  position: absolute; top: 10px; right: 10px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--accent);
+  display: none; align-items: center; justify-content: center;
+  font-size: 9px;
+}
+.model-card.selected .check-mark { display: flex; }
+
+/* ── Advanced settings ─────────────────────────────────────────────────── */
+details {
+  margin-top: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+summary {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  list-style: none;
+  display: flex; align-items: center; gap: 6px;
+  background: var(--raised);
+  transition: color 0.15s;
+}
+summary:hover { color: var(--text); }
+summary::marker, summary::-webkit-details-marker { display: none; }
+.adv-arrow { transition: transform 0.2s; }
+details[open] .adv-arrow { transform: rotate(90deg); }
+.adv-grid {
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.field label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+.field input, .field select {
+  width: 100%;
+  background: var(--raised);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  outline: none;
+  transition: border-color 0.15s;
+  appearance: none;
+}
+.field input:focus, .field select:focus { border-color: var(--accent); }
+.field select option { background: var(--surface); }
+.field.full { grid-column: 1 / -1; }
+.field input[type=password] { letter-spacing: 0.1em; }
+
+/* ── Submit ────────────────────────────────────────────────────────────── */
+#submit-btn {
+  width: 100%;
+  margin-top: 20px;
+  padding: 12px 0;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+#submit-btn:hover:not(:disabled) { background: var(--accent2); }
+#submit-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Progress card ─────────────────────────────────────────────────────── */
+#progress-card { display: none; }
+
+.steps {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  margin-bottom: 24px;
+}
+.steps::before {
+  content: '';
+  position: absolute;
+  top: 13px; left: 14px; right: 14px;
+  height: 1px;
+  background: var(--border);
+}
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  z-index: 1;
+}
+.step-dot {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border2);
+  background: var(--raised);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  transition: all 0.3s;
+}
+.step.active .step-dot {
+  border-color: var(--accent);
+  background: rgba(79,142,247,0.1);
+  color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(79,142,247,0.1);
+}
+.step.done .step-dot {
+  border-color: var(--success);
+  background: rgba(34,197,94,0.12);
+  color: var(--success);
+}
+.step-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.step.active .step-label { color: var(--accent); }
+.step.done .step-label  { color: var(--success); }
+
+.progress-bar-wrap {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  height: 6px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #7eb3ff);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  width: 0%;
+}
+.progress-pct {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+  margin-bottom: 6px;
+}
+.progress-msg {
+  font-size: 12px;
+  color: var(--dimmed);
+  text-align: center;
+  font-family: var(--mono);
+}
+.spinner {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border: 1.5px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Error banner ──────────────────────────────────────────────────────── */
+#error-card {
+  display: none;
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+}
+.error-title { font-family: var(--mono); font-size: 11px; color: var(--error); margin-bottom: 6px; }
+.error-body  { font-size: 12px; color: var(--dimmed); font-family: var(--mono); white-space: pre-wrap; word-break: break-word; }
+
+/* ── Results ───────────────────────────────────────────────────────────── */
+#results-card { display: none; }
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.stat {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  text-align: center;
+}
+.stat-value {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.stat-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Speaker legend */
+.speaker-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.sp-chip {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 9px 3px 6px;
+  border-radius: 20px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+.sp-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* Transcript */
+.transcript-controls {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+.icon-btn {
+  background: var(--raised);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 5px 10px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.04em;
+}
+.icon-btn:hover { color: var(--text); border-color: var(--border2); }
+
+#transcript-box {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  max-height: 480px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+#transcript-box::-webkit-scrollbar { width: 5px; }
+#transcript-box::-webkit-scrollbar-track { background: transparent; }
+#transcript-box::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+.seg-row {
+  display: grid;
+  grid-template-columns: 72px 110px 1fr;
+  gap: 0;
+  align-items: baseline;
+  padding: 5px 6px;
+  border-radius: 5px;
+  transition: background 0.1s;
+}
+.seg-row:hover { background: rgba(255,255,255,0.025); }
+.seg-ts {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  padding-top: 1px;
+}
+.seg-speaker {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-right: 10px;
+  white-space: nowrap;
+  align-self: start;
+}
+.seg-text {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+/* ── Download strip ────────────────────────────────────────────────────── */
+.dl-strip {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.dl-btn {
+  flex: 1;
+  padding: 9px 0;
+  background: var(--raised);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  color: var(--dimmed);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  text-decoration: none;
+  display: block;
+}
+.dl-btn:hover { color: var(--text); border-color: var(--accent); }
+.dl-btn span { margin-right: 5px; font-size: 13px; }
+
+/* ── Reset btn ─────────────────────────────────────────────────────────── */
+#reset-btn {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+  align-self: flex-start;
+  letter-spacing: 0.04em;
+}
+#reset-btn:hover { color: var(--text); border-color: var(--border2); }
+
+/* ── Notification toast ────────────────────────────────────────────────── */
+#toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: var(--raised);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.25s;
+  pointer-events: none;
+  z-index: 200;
+}
+#toast.show { opacity: 1; transform: translateY(0); }
+
+@media (max-width: 600px) {
+  .model-grid { grid-template-columns: 1fr; }
+  .stats-row  { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .adv-grid   { grid-template-columns: 1fr; }
+  .seg-row    { grid-template-columns: 60px 90px 1fr; }
+  header      { padding: 0 16px; }
+  main        { padding: 20px 12px 60px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🎙</div>
+    MEETING AGENT
+    <span class="logo-badge">FA</span>
+  </div>
+  <div class="whisper-status">
+    <div class="dot" id="whisper-dot"></div>
+    <span id="whisper-label">whisper:8001</span>
+  </div>
+</header>
+
+<!-- ── Main ────────────────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- ── Input card ──────────────────────────────────────────────────────── -->
+  <div class="card" id="input-card">
+    <div class="card-header">
+      <div class="card-label">Input</div>
+    </div>
+    <div class="card-body">
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('file')">▦ FILE</button>
+        <button class="tab-btn" onclick="switchTab('url')">⌁ URL</button>
+      </div>
+
+      <!-- File tab -->
+      <div id="tab-file">
+        <div id="drop-zone" onclick="document.getElementById('file-input').click()"
+             ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)"
+             ondrop="handleDrop(event)">
+          <div class="drop-icon">◻</div>
+          <p>Drop a file here, or <em>browse</em><br>
+            <small style="font-size:10px;color:var(--muted)">mp4 · mkv · mp3 · wav · flac · m4a · ogg</small></p>
+          <div id="file-info">
+            <span style="color:var(--success)">✓</span>
+            <span class="file-name" id="file-name-label"></span>
+            <span style="color:var(--muted)" id="file-size-label"></span>
+          </div>
+          <input type="file" id="file-input" accept="audio/*,video/*"
+                 onchange="handleFileSelect(this.files[0])" />
+        </div>
+      </div>
+
+      <!-- URL tab -->
+      <div id="tab-url" style="display:none">
+        <div class="url-input-wrap">
+          <label>YOUTUBE / DIRECT MEDIA URL</label>
+          <input type="url" id="url-input"
+                 placeholder="https://youtube.com/watch?v=… or https://example.com/meeting.mp4" />
+        </div>
+      </div>
+
+      <!-- Model selector -->
+      <div class="section-label">Diarization Model</div>
+      <div class="model-grid">
+
+        <label class="model-card selected" id="card-diarizen">
+          <div class="check-mark">✓</div>
+          <input type="radio" name="model" value="diarizen" checked onchange="selectModel(this)" />
+          <div class="badge badge-best">★ best</div>
+          <div class="model-name">DiariZen Large v2</div>
+          <div class="model-desc">WavLM + Conformer hybrid. Lowest DER on meeting benchmarks.</div>
+          <div class="model-der">AMI: <span>13.9%</span> · VoxConv: <span>9.1%</span></div>
+        </label>
+
+        <label class="model-card" id="card-community-1">
+          <div class="check-mark">✓</div>
+          <input type="radio" name="model" value="community-1" onchange="selectModel(this)" />
+          <div class="badge badge-oss">MIT</div>
+          <div class="model-name">pyannote community‑1</div>
+          <div class="model-desc">pyannote 4.0 open release. Solid step up from 3.1.</div>
+          <div class="model-der">AMI: <span>17.0%</span> · VoxConv: <span>11.2%</span></div>
+        </label>
+
+        <label class="model-card" id="card-pyannote-3.1">
+          <div class="check-mark">✓</div>
+          <input type="radio" name="model" value="pyannote-3.1" onchange="selectModel(this)" />
+          <div class="badge badge-leg">legacy</div>
+          <div class="model-name">pyannote 3.1</div>
+          <div class="model-desc">Widely deployed, maximum library compatibility.</div>
+          <div class="model-der">AMI: <span>18.8%</span> · VoxConv: <span>11.2%</span></div>
+        </label>
+
+      </div>
+
+      <!-- Advanced settings -->
+      <details>
+        <summary>
+          <span class="adv-arrow">▶</span>
+          &nbsp;Advanced settings
+        </summary>
+        <div class="adv-grid">
+          <div class="field">
+            <label>Whisper URL</label>
+            <input type="text" id="adv-whisper-url" value="http://localhost:8001" />
+          </div>
+          <div class="field">
+            <label>Whisper Model Name</label>
+            <input type="text" id="adv-whisper-model" value="whisper-large-v3" />
+          </div>
+          <div class="field">
+            <label>Language</label>
+            <select id="adv-language">
+              <option value="fa" selected>fa — Persian / Farsi</option>
+              <option value="en">en — English</option>
+              <option value="ar">ar — Arabic</option>
+              <option value="tr">tr — Turkish</option>
+              <option value="de">de — German</option>
+              <option value="fr">fr — French</option>
+              <option value="zh">zh — Chinese</option>
+              <option value="es">es — Spanish</option>
+              <option value="ru">ru — Russian</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Merge gap (seconds)</label>
+            <input type="number" id="adv-merge-gap" value="1.5" step="0.5" min="0" max="10" />
+          </div>
+          <div class="field full">
+            <label>HuggingFace Token (if not set via HF_TOKEN env)</label>
+            <input type="password" id="adv-hf-token" placeholder="hf_…" />
+          </div>
+        </div>
+      </details>
+
+      <button id="submit-btn" onclick="submitJob()">▶  PROCESS MEETING</button>
+    </div>
+  </div>
+
+  <!-- ── Progress card ──────────────────────────────────────────────────── -->
+  <div class="card" id="progress-card">
+    <div class="card-header">
+      <div class="card-label"><span class="spinner"></span>Processing</div>
+    </div>
+    <div class="card-body">
+      <div class="steps">
+        <div class="step" id="step-extracting">
+          <div class="step-dot">01</div>
+          <div class="step-label">Extract</div>
+        </div>
+        <div class="step" id="step-diarizing">
+          <div class="step-dot">02</div>
+          <div class="step-label">Diarize</div>
+        </div>
+        <div class="step" id="step-transcribing">
+          <div class="step-dot">03</div>
+          <div class="step-label">Transcribe</div>
+        </div>
+        <div class="step" id="step-aligning">
+          <div class="step-dot">04</div>
+          <div class="step-label">Align</div>
+        </div>
+        <div class="step" id="step-done">
+          <div class="step-dot">05</div>
+          <div class="step-label">Done</div>
+        </div>
+      </div>
+
+      <div class="progress-pct" id="progress-pct">0%</div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-msg" id="progress-msg">Initialising…</div>
+    </div>
+  </div>
+
+  <!-- ── Error card ─────────────────────────────────────────────────────── -->
+  <div id="error-card">
+    <div class="error-title">✕  Processing failed</div>
+    <div class="error-body" id="error-body"></div>
+  </div>
+
+  <!-- ── Results card ───────────────────────────────────────────────────── -->
+  <div class="card" id="results-card">
+    <div class="card-header" style="justify-content:space-between">
+      <div class="card-label">Transcript</div>
+      <button id="reset-btn" onclick="resetUI()" style="display:inline-block">↺ New</button>
+    </div>
+    <div class="card-body">
+
+      <div class="stats-row">
+        <div class="stat">
+          <div class="stat-value" id="stat-speakers">—</div>
+          <div class="stat-label">Speakers</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-segments">—</div>
+          <div class="stat-label">Segments</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-duration">—</div>
+          <div class="stat-label">Duration</div>
+        </div>
+      </div>
+
+      <div class="speaker-legend" id="speaker-legend"></div>
+
+      <div class="transcript-controls">
+        <button class="icon-btn" onclick="copyTranscript()">⎘ Copy</button>
+      </div>
+
+      <div id="transcript-box"></div>
+
+      <div class="dl-strip">
+        <a class="dl-btn" id="dl-txt"  href="#"><span>↓</span>TXT</a>
+        <a class="dl-btn" id="dl-json" href="#"><span>↓</span>JSON</a>
+        <a class="dl-btn" id="dl-srt"  href="#"><span>↓</span>SRT</a>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentFile = null;
+let currentTab  = 'file';
+let pollTimer   = null;
+let currentJobId = null;
+
+const SPEAKER_COLORS = [
+  { bg: 'rgba(79,142,247,0.15)',   text: '#4f8ef7', border: 'rgba(79,142,247,0.25)'   },
+  { bg: 'rgba(249,115,22,0.15)',   text: '#f97316', border: 'rgba(249,115,22,0.25)'   },
+  { bg: 'rgba(34,197,94,0.12)',    text: '#22c55e', border: 'rgba(34,197,94,0.22)'    },
+  { bg: 'rgba(167,139,250,0.15)',  text: '#a78bfa', border: 'rgba(167,139,250,0.25)'  },
+  { bg: 'rgba(244,63,94,0.13)',    text: '#f43f5e', border: 'rgba(244,63,94,0.25)'    },
+  { bg: 'rgba(6,182,212,0.13)',    text: '#06b6d4', border: 'rgba(6,182,212,0.23)'    },
+];
+
+const STEP_ORDER = ['extracting','diarizing','transcribing','aligning','exporting','done'];
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-file').style.display = tab === 'file' ? '' : 'none';
+  document.getElementById('tab-url').style.display  = tab === 'url'  ? '' : 'none';
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    b.classList.toggle('active', (i === 0 && tab==='file') || (i===1 && tab==='url'));
+  });
+}
+
+// ── File handling ─────────────────────────────────────────────────────────────
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.add('drag-over');
+}
+function handleDragLeave(e) {
+  document.getElementById('drop-zone').classList.remove('drag-over');
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFileSelect(f);
+}
+function handleFileSelect(f) {
+  if (!f) return;
+  currentFile = f;
+  document.getElementById('file-name-label').textContent = f.name;
+  document.getElementById('file-size-label').textContent = `(${formatBytes(f.size)})`;
+  document.getElementById('file-info').style.display = 'flex';
+  document.querySelector('#drop-zone .drop-icon').style.display = 'none';
+  document.querySelector('#drop-zone p').style.display = 'none';
+}
+function formatBytes(b) {
+  if (b < 1e6) return (b/1e3).toFixed(1)+' KB';
+  return (b/1e6).toFixed(1)+' MB';
+}
+
+// ── Model card selection ──────────────────────────────────────────────────────
+function selectModel(radio) {
+  document.querySelectorAll('.model-card').forEach(c => c.classList.remove('selected'));
+  radio.closest('.model-card').classList.add('selected');
+}
+
+// ── Submit ────────────────────────────────────────────────────────────────────
+async function submitJob() {
+  const btn = document.getElementById('submit-btn');
+
+  const model        = document.querySelector('input[name=model]:checked')?.value || 'diarizen';
+  const whisperUrl   = document.getElementById('adv-whisper-url').value.trim();
+  const whisperModel = document.getElementById('adv-whisper-model').value.trim();
+  const language     = document.getElementById('adv-language').value;
+  const mergeGap     = document.getElementById('adv-merge-gap').value;
+  const hfToken      = document.getElementById('adv-hf-token').value.trim();
+
+  const fd = new FormData();
+  fd.append('model', model);
+  fd.append('whisper_url', whisperUrl);
+  fd.append('whisper_model', whisperModel);
+  fd.append('language', language);
+  fd.append('merge_gap', mergeGap);
+  if (hfToken) fd.append('hf_token', hfToken);
+
+  if (currentTab === 'file') {
+    if (!currentFile) { showToast('Please select a file first'); return; }
+    fd.append('file', currentFile);
+  } else {
+    const url = document.getElementById('url-input').value.trim();
+    if (!url) { showToast('Please enter a URL first'); return; }
+    fd.append('url', url);
+  }
+
+  btn.disabled = true;
+  showProgress();
+
+  try {
+    const resp = await fetch('/api/process', { method: 'POST', body: fd });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || 'Server error');
+    currentJobId = data.job_id;
+    startPolling(data.job_id);
+  } catch(err) {
+    showError(err.message);
+    btn.disabled = false;
+  }
+}
+
+// ── Polling ───────────────────────────────────────────────────────────────────
+function startPolling(jobId) {
+  pollTimer = setInterval(() => pollStatus(jobId), 1500);
+}
+
+async function pollStatus(jobId) {
+  try {
+    const resp = await fetch(`/api/status/${jobId}`);
+    const job  = await resp.json();
+    updateProgress(job);
+
+    if (job.status === 'done') {
+      clearInterval(pollTimer);
+      showResults(job.result, jobId);
+    } else if (job.status === 'error') {
+      clearInterval(pollTimer);
+      showError(job.error || 'Unknown error');
+      document.getElementById('submit-btn').disabled = false;
+    }
+  } catch {
+    // transient network error — keep polling
+  }
+}
+
+// ── Progress ──────────────────────────────────────────────────────────────────
+function showProgress() {
+  document.getElementById('progress-card').style.display = '';
+  document.getElementById('error-card').style.display = 'none';
+  document.getElementById('results-card').style.display = 'none';
+}
+
+function updateProgress(job) {
+  const pct  = job.progress || 0;
+  const step = job.step || '';
+  const msg  = job.message || '';
+
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent  = pct + '%';
+  document.getElementById('progress-msg').textContent  = msg;
+
+  const stepIdx = STEP_ORDER.indexOf(step);
+  STEP_ORDER.forEach((s, i) => {
+    const el = document.getElementById('step-' + s);
+    if (!el) return;
+    el.classList.remove('active', 'done');
+    if (i < stepIdx) el.classList.add('done');
+    else if (i === stepIdx) el.classList.add('active');
+  });
+}
+
+// ── Results ───────────────────────────────────────────────────────────────────
+function showResults(result, jobId) {
+  document.getElementById('progress-card').style.display = 'none';
+  document.getElementById('results-card').style.display = '';
+  document.getElementById('reset-btn').style.display = 'inline-block';
+
+  document.getElementById('stat-speakers').textContent = result.n_speakers;
+  document.getElementById('stat-segments').textContent = result.n_segments;
+  document.getElementById('stat-duration').textContent = fmtTime(result.duration);
+
+  // speaker → color map
+  const colorMap = {};
+  result.speakers.forEach((sp, i) => {
+    colorMap[sp] = SPEAKER_COLORS[i % SPEAKER_COLORS.length];
+  });
+
+  // legend
+  const legend = document.getElementById('speaker-legend');
+  legend.innerHTML = '';
+  result.speakers.forEach(sp => {
+    const c = colorMap[sp];
+    const chip = document.createElement('div');
+    chip.className = 'sp-chip';
+    chip.style.cssText = `background:${c.bg};border-color:${c.border};color:${c.text}`;
+    chip.innerHTML = `<span class="sp-dot" style="background:${c.text}"></span>${sp}`;
+    legend.appendChild(chip);
+  });
+
+  // transcript
+  const box = document.getElementById('transcript-box');
+  box.innerHTML = '';
+  result.segments.forEach(seg => {
+    const c   = colorMap[seg.speaker] || SPEAKER_COLORS[0];
+    const row = document.createElement('div');
+    row.className = 'seg-row';
+    row.innerHTML = `
+      <span class="seg-ts">${fmtTime(seg.start)}</span>
+      <span class="seg-speaker" style="background:${c.bg};color:${c.text};border:1px solid ${c.border}">${seg.speaker}</span>
+      <span class="seg-text" dir="auto">${escHtml(seg.text)}</span>
+    `;
+    box.appendChild(row);
+  });
+
+  // downloads
+  const base = `/api/download/${jobId}`;
+  document.getElementById('dl-txt').href  = `${base}/txt`;
+  document.getElementById('dl-json').href = `${base}/json`;
+  document.getElementById('dl-srt').href  = `${base}/srt`;
+
+  document.getElementById('submit-btn').disabled = false;
+}
+
+// ── Error ─────────────────────────────────────────────────────────────────────
+function showError(msg) {
+  document.getElementById('progress-card').style.display = 'none';
+  const card = document.getElementById('error-card');
+  card.style.display = '';
+  document.getElementById('error-body').textContent = msg;
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
+function resetUI() {
+  clearInterval(pollTimer);
+  currentFile = null;
+  currentJobId = null;
+  document.getElementById('file-input').value = '';
+  document.getElementById('file-info').style.display = 'none';
+  document.querySelector('#drop-zone .drop-icon').style.display = '';
+  document.querySelector('#drop-zone p').style.display = '';
+  document.getElementById('url-input').value = '';
+  document.getElementById('progress-card').style.display = 'none';
+  document.getElementById('results-card').style.display = 'none';
+  document.getElementById('error-card').style.display = 'none';
+  document.getElementById('submit-btn').disabled = false;
+  updateProgress({ progress: 0, step: '', message: '' });
+}
+
+// ── Copy transcript ───────────────────────────────────────────────────────────
+function copyTranscript() {
+  const rows = document.querySelectorAll('.seg-row');
+  const lines = [];
+  rows.forEach(r => {
+    const ts  = r.querySelector('.seg-ts')?.textContent.trim()      || '';
+    const sp  = r.querySelector('.seg-speaker')?.textContent.trim() || '';
+    const txt = r.querySelector('.seg-text')?.textContent.trim()    || '';
+    lines.push(`[${ts}]  ${sp}: ${txt}`);
+  });
+  navigator.clipboard.writeText(lines.join('\n'))
+    .then(() => showToast('Transcript copied ✓'))
+    .catch(() => showToast('Copy failed'));
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function fmtTime(s) {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = Math.floor(s % 60);
+  if (h > 0) return `${pad(h)}:${pad(m)}:${pad(sec)}`;
+  return `${pad(m)}:${pad(sec)}`;
+}
+function pad(n) { return String(n).padStart(2,'0'); }
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Whisper health check ──────────────────────────────────────────────────────
+async function checkWhisperHealth() {
+  const url = document.getElementById('adv-whisper-url')?.value || 'http://localhost:8001';
+  const dot  = document.getElementById('whisper-dot');
+  const lbl  = document.getElementById('whisper-label');
+  try {
+    const resp = await fetch(`${url}/health`, { signal: AbortSignal.timeout(2000) });
+    if (resp.ok) { dot.className = 'dot online'; lbl.textContent = 'whisper ✓'; }
+    else throw new Error();
+  } catch {
+    // try /v1/models as fallback
+    try {
+      const resp2 = await fetch(`${url}/v1/models`, { signal: AbortSignal.timeout(2000) });
+      if (resp2.ok) { dot.className = 'dot online'; lbl.textContent = 'whisper ✓'; return; }
+    } catch {}
+    dot.className = 'dot offline'; lbl.textContent = 'whisper offline';
+  }
+}
+
+checkWhisperHealth();
+setInterval(checkWhisperHealth, 15000);
+document.getElementById('adv-whisper-url').addEventListener('change', checkWhisperHealth);
+</script>
+</body>
+</html>
